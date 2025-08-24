@@ -2,14 +2,91 @@ import argparse
 import base64
 from rich.console import Console
 from bitcointx.core.psbt import PartiallySignedTransaction
+from bitcointx.core.script import CScript
+from bitcointx.wallet import CBitcoinAddress
 
 # Initialize Rich console for pretty output
 console = Console()
 
+def get_script_and_address_info(utxo):
+    script_pubkey = utxo.scriptPubKey
+    script_type = CScript(script_pubkey)
+    try:
+        address_obj = CBitcoinAddress.from_scriptPubKey(script_pubkey)
+        address = str(address_obj)
+        address_type = address_obj.__class__.__name__
+    except ValueError:
+        address = "Non-standard"
+        address_type = "Non-standard"
+
+    return (get_script_type(script_type), address, address_type)
+
+def get_script_type(script):
+    #print(dir(script))
+    if script.is_p2pkh():
+        script_type = 'pubkeyhash'
+    elif script.is_p2sh():
+        script_type = 'scripthash'
+    elif script.is_witness_v0_keyhash():
+        script_type = 'witness_v0_keyhash'
+    elif script.is_witness_v0_scripthash():
+        script_type = 'witness_v0_scripthash'
+    elif script.is_witness_v1_taproot():
+        script_type = 'witness_v1_taproot'
+    else:
+        script_type = 'unknown'
+    
+    return script_type
+
+def estimate_input_vbytes_from_script_type(script_type):
+    # Estimate input contribution to vsize based on script type
+    if script_type in ['pubkeyhash', 'scripthash', 'multisig', 'pubkey']:
+        input_vb = 148
+    elif script_type == 'witness_v0_keyhash':
+        input_vb = 68
+    elif script_type == 'witness_v0_scripthash':
+        input_vb = 100  # Approximate for common multisig; adjust if needed
+    elif script_type == 'witness_v1_taproot':
+        input_vb = 58
+    else:
+        input_vb = 148  # Default conservative estimate
+
+    return input_vb
+
 def parse_psbt_input(psbt_base64: str):
     try:
         psbt_obj = PartiallySignedTransaction.from_base64(b64_data = psbt_base64)
-        print(psbt_obj)
+
+        parsed_data = {
+            "version": psbt_obj.version,
+            "inputs": [],
+            "outputs": [],
+            "fee": 0, # Will be calculated later
+        }
+
+        for i, txin in enumerate(psbt_obj.unsigned_tx.vin):
+            psbt_in = psbt_obj.inputs[i]
+            if psbt_in.witness_utxo:
+                utxo = psbt_in.witness_utxo
+            elif psbt_in.non_witness_utxo:
+                prev_tx = psbt_in.non_witness_utxo
+                utxo = prev_tx.vout[txin.prevout.n]
+            else:
+                print(f"Input {i}: No UTXO info available")
+                continue
+            
+            (script_type, address, address_type) = get_script_and_address_info(utxo)
+
+            parsed_data["inputs"].append({
+                "amount": utxo.nValue,
+                "script_type": script_type,
+                "address": address,
+                "address_type": address_type
+            })
+
+
+
+        return parsed_data
     except Exception as e:
         console.print(f"[bold red]Error parsing PSBT with python-bitcointx:[/bold red] {e}")
         return None
@@ -37,7 +114,7 @@ def analyze_psbt():
             console.print("[bold red]Error:[/bold red] File not found.")
             return
     
-    parse_psbt_input(psbt_data_input)
+    print(parse_psbt_input(psbt_data_input))
 
 if __name__ == "__main__":
     analyze_psbt()
