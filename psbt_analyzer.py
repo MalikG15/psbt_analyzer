@@ -4,7 +4,6 @@ from rich.console import Console
 # Initialize Rich console for pretty output
 console = Console()
 
-
 def analyze_psbt():
     """
     Main function to handle command-line arguments and run the psbt analyzer.
