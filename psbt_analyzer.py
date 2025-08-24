@@ -1,8 +1,11 @@
 import argparse
 from rich.console import Console
+from rich.table import Table
 from bitcointx.core.psbt import PartiallySignedTransaction
 from bitcointx.core.script import CScript
 from bitcointx.wallet import CBitcoinAddress
+
+script_types = ['pubkeyhash', 'scripthash', 'witness_v0_keyhash', 'witness_v0_scripthash', 'witness_v1_taproot']
 
 # Initialize Rich console for pretty output
 console = Console()
@@ -54,6 +57,57 @@ def estimate_output_vbyte_from_script(script):
     script_len = len(script)
     varint_len = 1 if script_len < 253 else 3
     return 8 + varint_len + script_len
+
+def format_sats_to_btc(sats: int) -> float:
+    """Converts a value in satoshis to BTC."""
+    return round(sats / 100000000, 8)
+
+def display_analysis(analysis_results: dict):
+    """
+    Displays the analysis results in a structured format using Rich.
+    """
+    if not analysis_results:
+        console.print("[bold red]Analysis failed. Check your PSBT input.[/bold red]")
+        return
+        
+    console.print("[bold green]PSBT Analysis Summary[/bold green]")
+
+    table = Table(show_header=True, header_style="bold blue")
+    table.add_column("Metric", style="dim", width=20)
+    table.add_column("Value")
+    
+    table.add_row("PSBT Version", str(analysis_results["psbt_version"]))
+    table.add_row("Total Inputs", f"{format_sats_to_btc(analysis_results['total_input_value']):.8f} BTC")
+    table.add_row("Total Outputs", f"{format_sats_to_btc(analysis_results['total_output_value']):.8f} BTC")
+    table.add_row("Inferred Fee", f"{format_sats_to_btc(analysis_results['inferred_fee']):.8f} BTC")
+    table.add_row("Inferred Fee Rate", f"{analysis_results['inferred_fee_rate']:.2f} sats/vB")
+    
+    console.print(table)
+    
+    console.print("\n[bold yellow]Fee Reasonableness[/bold yellow]")
+    console.print(analysis_results["fee_reasonableness"]["suggestion"])
+
+    console.print("\n[bold yellow]Script Type Summary[/bold yellow]")
+    console.print(analysis_results["script_summary"])
+
+def format_script_type_summary(inputs: list, outputs: list) -> str:
+    """
+    Provides a summary of script types and their weight implications.
+    """
+    script_types = set()
+    for item in inputs + outputs:
+        if 'script_type' in item:
+            script_types.add(item['script_type'])
+
+    summary = []
+    if "P2TR" in script_types:
+        summary.append("Taproot (P2TR) scripts are used, providing maximum efficiency and privacy.")
+    if "P2WPKH" in script_types or "P2SH-P2WPKH" in script_types:
+        summary.append("SegWit (P2WPKH/P2SH-P2WPKH) scripts are used, which are more space-efficient.")
+    if "P2PKH" in script_types:
+        summary.append("Legacy (P2PKH) scripts are used, which have higher transaction weight.")
+    
+    return " ".join(summary)
 
 def parse_psbt_input(psbt_base64: str):
     try:
