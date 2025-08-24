@@ -55,6 +55,14 @@ def estimate_output_vbyte_from_script(script):
     varint_len = 1 if script_len < 253 else 3
     return 8 + varint_len + script_len
 
+def determine_change(parsed_data):
+    # Heuristic: Find the largest output
+    sorted_outputs = sorted(parsed_data["outputs"], key=lambda o: o["amount"], reverse=True)
+    change_output = {}
+    if len(sorted_outputs) > 0:
+        change_output = sorted_outputs[0]
+    return change_output
+
 def parse_psbt_input(psbt_base64: str):
     try:
         psbt_obj = PartiallySignedTransaction.from_base64(b64_data = psbt_base64)
@@ -117,6 +125,7 @@ def parse_psbt_input(psbt_base64: str):
         parsed_data["fee"] = total_btc_input_amount - total_btc_output_amount
         total_estimated_input_output_vbytes_size =  estimate_output_vbytes + estimated_input_vbytes
         parsed_data["fee_rate"] = parsed_data["fee"] / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
+        parsed_data["change"] = determine_change(parsed_data)
 
         return parsed_data
     except Exception as e:
