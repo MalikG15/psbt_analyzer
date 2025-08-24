@@ -1,5 +1,4 @@
 import argparse
-import base64
 from rich.console import Console
 from bitcointx.core.psbt import PartiallySignedTransaction
 from bitcointx.core.script import CScript
@@ -67,8 +66,10 @@ def parse_psbt_input(psbt_base64: str):
             "fee": 0, # Will be calculated later
         }
 
-        total_amount = 0
-        estimated_total_size = 0
+        total_btc_input_amount = 0
+        total_btc_output_amount = 0
+        estimated_total_input_size = 0
+        estimate_output_vbytes = 0
 
         for i, txin in enumerate(psbt_obj.unsigned_tx.vin):
             psbt_in = psbt_obj.inputs[i]
@@ -84,9 +85,9 @@ def parse_psbt_input(psbt_base64: str):
             (script_type, address, address_type) = get_script_and_address_info(utxo.scriptPubKey)
 
             estimated_input_vbytes = estimate_input_vbytes_from_script_type(script_type)
-            estimated_total_size += estimated_input_vbytes
+            estimated_total_input_size += estimated_input_vbytes
             amount = utxo.nValue
-            total_amount += amount
+            total_btc_input_amount += amount
 
             parsed_data["inputs"].append({
                 "amount": amount,
@@ -100,13 +101,22 @@ def parse_psbt_input(psbt_base64: str):
             script = txout.scriptPubKey
 
             (script_type, address, address_type) = get_script_and_address_info(script)
+            estimated_size = estimate_output_vbyte_from_script(script_type)
+            estimate_output_vbytes += estimated_size
+            amount = txout.nValue
+            total_btc_output_amount += amount
 
             parsed_data["outputs"].append({
+                "amount": amount,
                 "script_type": script_type,
                 "address": address,
                 "address_type": address_type,
-                "estimated_output_vb": estimate_output_vbyte_from_script(script_type)
+                "estimated_output_vb": estimated_size
             })
+
+        parsed_data["fee"] = total_btc_input_amount - total_btc_output_amount
+        total_estimated_input_output_vbytes_size =  estimate_output_vbytes + estimated_input_vbytes
+        parsed_data["fee_rate"] = parsed_data["fee"] / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
 
         return parsed_data
     except Exception as e:
