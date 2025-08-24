@@ -8,8 +8,7 @@ from bitcointx.wallet import CBitcoinAddress
 # Initialize Rich console for pretty output
 console = Console()
 
-def get_script_and_address_info(utxo):
-    script_pubkey = utxo.scriptPubKey
+def get_script_and_address_info(script_pubkey):
     script_type = CScript(script_pubkey)
     try:
         address_obj = CBitcoinAddress.from_scriptPubKey(script_pubkey)
@@ -22,7 +21,6 @@ def get_script_and_address_info(utxo):
     return (get_script_type(script_type), address, address_type)
 
 def get_script_type(script):
-    #print(dir(script))
     if script.is_p2pkh():
         script_type = 'pubkeyhash'
     elif script.is_p2sh():
@@ -40,18 +38,23 @@ def get_script_type(script):
 
 def estimate_input_vbytes_from_script_type(script_type):
     # Estimate input contribution to vsize based on script type
-    if script_type in ['pubkeyhash', 'scripthash', 'multisig', 'pubkey']:
+    if script_type in ['pubkeyhash', 'scripthash']:
         input_vb = 148
     elif script_type == 'witness_v0_keyhash':
         input_vb = 68
     elif script_type == 'witness_v0_scripthash':
-        input_vb = 100  # Approximate for common multisig; adjust if needed
+        input_vb = 100
     elif script_type == 'witness_v1_taproot':
         input_vb = 58
     else:
-        input_vb = 148  # Default conservative estimate
+        input_vb = 148
 
     return input_vb
+
+def estimate_output_vbyte_from_script(script):
+    script_len = len(script)
+    varint_len = 1 if script_len < 253 else 3
+    return 8 + varint_len + script_len
 
 def parse_psbt_input(psbt_base64: str):
     try:
@@ -64,6 +67,9 @@ def parse_psbt_input(psbt_base64: str):
             "fee": 0, # Will be calculated later
         }
 
+        total_amount = 0
+        estimated_total_size = 0
+
         for i, txin in enumerate(psbt_obj.unsigned_tx.vin):
             psbt_in = psbt_obj.inputs[i]
             if psbt_in.witness_utxo:
@@ -75,16 +81,32 @@ def parse_psbt_input(psbt_base64: str):
                 print(f"Input {i}: No UTXO info available")
                 continue
             
-            (script_type, address, address_type) = get_script_and_address_info(utxo)
+            (script_type, address, address_type) = get_script_and_address_info(utxo.scriptPubKey)
+
+            estimated_input_vbytes = estimate_input_vbytes_from_script_type(script_type)
+            estimated_total_size += estimated_input_vbytes
+            amount = utxo.nValue
+            total_amount += amount
 
             parsed_data["inputs"].append({
-                "amount": utxo.nValue,
+                "amount": amount,
                 "script_type": script_type,
                 "address": address,
-                "address_type": address_type
+                "address_type": address_type,
+                "estimated_input_vbytes": estimated_input_vbytes
             })
 
+        for txout in psbt_obj.unsigned_tx.vout:
+            script = txout.scriptPubKey
 
+            (script_type, address, address_type) = get_script_and_address_info(script)
+
+            parsed_data["outputs"].append({
+                "script_type": script_type,
+                "address": address,
+                "address_type": address_type,
+                "estimated_output_vb": estimate_output_vbyte_from_script(script_type)
+            })
 
         return parsed_data
     except Exception as e:
