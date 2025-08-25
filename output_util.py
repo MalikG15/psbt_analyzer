@@ -48,10 +48,3 @@ def display_analysis(analysis_results: dict):
         console.print("[dim]*Based on the largest value heuristic.[/dim]")
     else:
         console.print("No change output detected using a simple heuristic.")
-
-    table = Table(show_header=True, header_style="bold white")
-    table.add_column("Input #", style="dim", width=20)
-    table.add_column("Input ID", style="dim", width=20)
-    table.add_column("Input Amount")
-    for i, inputs in enumerate(analysis_results["inputs"]):
-         table.add_row(i, 'n/a', inputs["amount"])
