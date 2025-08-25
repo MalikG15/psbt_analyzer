@@ -32,16 +32,6 @@ If the PSBT can be decoded and is a valid PSBT, you should see it an analysis im
 
 <img width="565" height="467" alt="Screenshot 2025-08-25 at 7 11 23 PM" src="https://github.com/user-attachments/assets/f64a8c9c-783e-4577-87ed-f3d552073ce7" />
 
-The analysis will include:
-1. The PSBT Version
-2. The BTC amount of total inputs
-3. The BTC amount of total outputs
-4. The inferred fee
-5. The inferred fee rate
-6. The fee reasonableness based on current fee rates
-7. The script types used for both inputs and outputs
-8. A summary of the detected change output
-
 ## Coin Selection Simulation
 After analyzing the PSBT data once, you can then run a coin selection simulation which will attempt different strategies and show the associated changes if those strategies were chosen:
 
