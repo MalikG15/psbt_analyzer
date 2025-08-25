@@ -15,7 +15,7 @@ Included in this project are three example PSBTs found over the internet.
 You can test the PSBT Analyzer a couple of ways:
 
 ## Starting the Program via the CLI
-You can execute the program in 1 of two ways:
+You can execute the program in one of two ways:
 
 1. Passing in a base64 encoded PSBT directly in the CLI
 ```
