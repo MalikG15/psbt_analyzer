@@ -444,8 +444,8 @@ def edit_parsed_data(parsed_data):
             # Adjust output varint if needed (simplify: subtract 1 for count if it changes varint, but rare)
             if output_count - 1 < 253 and output_count >= 253:
                 vbytes_without_change -= 2  # from 3 to 1
-            fee_without = int(vbytes_without_change * fee_rate)
-            if parsed_data['total_input_value'] >= target + fee_without:
+            fee_without_change = int(vbytes_without_change * fee_rate)
+            if parsed_data['total_input_value'] >= target + fee_without_change:
                 console.print("[yellow]Change would be dust or negative; removing change output and adjusting fee.[/yellow]")
                 parsed_data['outputs'].pop(likely_change_output_index)
                 parsed_data['total_output_value'] = target
