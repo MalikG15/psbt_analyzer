@@ -4,6 +4,7 @@ from rich.table import Table
 from bitcointx.core.psbt import PartiallySignedTransaction
 from bitcointx.core.script import CScript
 from bitcointx.wallet import CBitcoinAddress
+import fee_service
 
 script_types = ['pubkeyhash', 'scripthash', 'witness_v0_keyhash', 'witness_v0_scripthash', 'witness_v1_taproot']
 
@@ -58,56 +59,31 @@ def estimate_output_vbyte_from_script(script):
     varint_len = 1 if script_len < 253 else 3
     return 8 + varint_len + script_len
 
-def format_sats_to_btc(sats: int) -> float:
-    """Converts a value in satoshis to BTC."""
-    return round(sats / 100000000, 8)
-
-def display_analysis(analysis_results: dict):
-    """
-    Displays the analysis results in a structured format using Rich.
-    """
-    if not analysis_results:
-        console.print("[bold red]Analysis failed. Check your PSBT input.[/bold red]")
-        return
-        
-    console.print("[bold green]PSBT Analysis Summary[/bold green]")
-
-    table = Table(show_header=True, header_style="bold blue")
-    table.add_column("Metric", style="dim", width=20)
-    table.add_column("Value")
+def is_output_likely_change(psbt_out, amount, address, address_type, input_address_types, input_addresses):
+    is_likely_change = False
+    change_reason = ""
+    if hasattr(psbt_out, 'bip32_derivation') and psbt_out.bip32_derivation or psbt_out.redeem_script or psbt_out.witness_script:
+        is_likely_change = True
+        change_reason = "Has BIP32 derivation or script metadata"
+    else:
+        is_round = (amount % 100000 == 0)
+        if address_type in input_address_types and address not in input_addresses and 'OP_RETURN' not in address_type and not is_round:
+            is_likely_change = True
+            change_reason = "Has fresh address of matching type, non-round amount"
     
-    table.add_row("PSBT Version", str(analysis_results["psbt_version"]))
-    table.add_row("Total Inputs", f"{format_sats_to_btc(analysis_results['total_input_value']):.8f} BTC")
-    table.add_row("Total Outputs", f"{format_sats_to_btc(analysis_results['total_output_value']):.8f} BTC")
-    table.add_row("Inferred Fee", f"{format_sats_to_btc(analysis_results['inferred_fee']):.8f} BTC")
-    table.add_row("Inferred Fee Rate", f"{analysis_results['inferred_fee_rate']:.2f} sats/vB")
-    
-    console.print(table)
-    
-    console.print("\n[bold yellow]Fee Reasonableness[/bold yellow]")
-    console.print(analysis_results["fee_reasonableness"]["suggestion"])
+    return (is_likely_change, change_reason)
 
-    console.print("\n[bold yellow]Script Type Summary[/bold yellow]")
-    console.print(analysis_results["script_summary"])
+def determine_fee_reasonableness(fee_rate, fetched_fee_rates):
+    """Checks if the fee rate is within a reasonable range."""
+    return fetched_fee_rates["halfHourFee"] <= fee_rate <= fetched_fee_rates["fastestFee"]
 
-def format_script_type_summary(inputs: list, outputs: list) -> str:
-    """
-    Provides a summary of script types and their weight implications.
-    """
-    script_types = set()
-    for item in inputs + outputs:
-        if 'script_type' in item:
-            script_types.add(item['script_type'])
-
-    summary = []
-    if "P2TR" in script_types:
-        summary.append("Taproot (P2TR) scripts are used, providing maximum efficiency and privacy.")
-    if "P2WPKH" in script_types or "P2SH-P2WPKH" in script_types:
-        summary.append("SegWit (P2WPKH/P2SH-P2WPKH) scripts are used, which are more space-efficient.")
-    if "P2PKH" in script_types:
-        summary.append("Legacy (P2PKH) scripts are used, which have higher transaction weight.")
-    
-    return " ".join(summary)
+def fee_reasonableness_suggestion(rate: float, estimates: dict) -> str:
+    """Generates a suggestion based on the fee rate."""
+    if rate < estimates["halfHourFee"]:
+        return f"The fee rate of {rate:.2f} sats/vB seems low. It may take longer than 30 minutes to confirm."
+    if rate > estimates["fastestFee"]:
+        return f"The fee rate of {rate:.2f} sats/vB is very high. You might be overpaying."
+    return f"The fee rate of {rate:.2f} sats/vB is reasonable for a fast confirmation."
 
 def parse_psbt_input(psbt_base64: str):
     try:
@@ -125,6 +101,8 @@ def parse_psbt_input(psbt_base64: str):
         estimated_total_input_size = 0
         estimate_output_vbytes = 0
 
+        input_address_types = []
+        input_addresses = []
         for i, txin in enumerate(psbt_obj.unsigned_tx.vin):
             psbt_in = psbt_obj.inputs[i]
             if psbt_in.witness_utxo:
@@ -137,6 +115,8 @@ def parse_psbt_input(psbt_base64: str):
                 continue
             
             (script_type, address, address_type) = get_script_and_address_info(utxo.scriptPubKey)
+            input_address_types.append(address_type)
+            input_addresses.append(address)
 
             estimated_input_vbytes = estimate_input_vbytes_from_script_type(script_type)
             estimated_total_input_size += estimated_input_vbytes
@@ -151,7 +131,10 @@ def parse_psbt_input(psbt_base64: str):
                 "estimated_input_vbytes": estimated_input_vbytes
             })
 
-        for txout in psbt_obj.unsigned_tx.vout:
+        likely_change_output_index = -1
+        change_reason = ""
+        for i, txout in enumerate(psbt_obj.unsigned_tx.vout):
+            psbt_out = psbt_obj.outputs[i]
             script = txout.scriptPubKey
 
             (script_type, address, address_type) = get_script_and_address_info(script)
@@ -168,9 +151,28 @@ def parse_psbt_input(psbt_base64: str):
                 "estimated_output_vb": estimated_size
             })
 
-        parsed_data["fee"] = total_btc_input_amount - total_btc_output_amount
+            is_likely_change, change_reason = is_output_likely_change(psbt_out, amount, address, address_type, input_address_types, input_addresses)
+            if is_likely_change:
+                likely_change_output_index = i
+
+        fee = total_btc_input_amount - total_btc_output_amount
         total_estimated_input_output_vbytes_size =  estimate_output_vbytes + estimated_input_vbytes
-        parsed_data["fee_rate"] = parsed_data["fee"] / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
+        fee_rate = fee / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
+        
+        parsed_data["fee"] = fee
+        parsed_data["fee_rate"] = fee_rate
+        
+        fetched_fee_rates = fee_service.get_recommended_fees()
+        fee_reasonableness = {
+            "is_reasonable": determine_fee_reasonableness(fee_rate, fetched_fee_rates),
+            "suggestion": fee_reasonableness_suggestion(fee_rate, fetched_fee_rates),
+        }
+
+        parsed_data["change_output"] = parsed_data["outputs"][likely_change_output_index] if likely_change_output_index != -1 else {}
+        if parsed_data["change_output"]:
+            parsed_data["change_output"]["reason"] = change_reason
+        
+        parsed_data["fee_reasonableness"] = fee_reasonableness
 
         return parsed_data
     except Exception as e:
