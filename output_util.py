@@ -17,7 +17,7 @@ def display_analysis(analysis_results: dict):
         
     console.print("[bold green]PSBT Analysis Summary[/bold green]")
 
-    table = Table(show_header=True, header_style="bold blue")
+    table = Table(show_header=True, header_style="bold white")
     table.add_column("Metric", style="dim", width=20)
     table.add_column("Value")
     
@@ -37,7 +37,7 @@ def display_analysis(analysis_results: dict):
 
     if analysis_results["change_output"]:
         console.print("\n[bold yellow]Change Output Detection[/bold yellow]")
-        change_table = Table(show_header=True, header_style="bold magenta")
+        change_table = Table(show_header=True, header_style="bold white")
         change_table.add_column("Metric")
         change_table.add_column("Value")
         change_table.add_row("Value", f"{format_sats_to_btc(analysis_results['change_output']['amount']):.8f} BTC")
