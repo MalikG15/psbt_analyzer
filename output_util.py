@@ -43,6 +43,7 @@ def display_analysis(analysis_results: dict):
         change_table.add_row("Value", f"{format_sats_to_btc(analysis_results['change_output']['amount']):.8f} BTC")
         change_table.add_row("Script Type", analysis_results['change_output']['script_type'])
         change_table.add_row("Address", analysis_results['change_output'].get('address', 'N/A'))
+        change_table.add_row("Reason", analysis_results['change_output'].get('reason', 'N/A'))
         console.print(change_table)
         console.print("[dim]*Based on the largest value heuristic.[/dim]")
     else:

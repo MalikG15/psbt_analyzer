@@ -113,7 +113,6 @@ def parse_psbt_input(psbt_base64: str):
             "version": psbt_obj.version,
             "inputs": [],
             "outputs": [],
-            "fee": 0, # Will be calculated later
         }
 
         total_btc_input_amount = 0
