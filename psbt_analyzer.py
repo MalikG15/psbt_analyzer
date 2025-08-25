@@ -81,9 +81,6 @@ def fee_reasonableness_suggestion(rate: float, estimates: dict) -> str:
     return f"The fee rate of {rate:.2f} sats/vB is reasonable for a fast confirmation."
 
 def format_script_type_summary(inputs: list, outputs: list) -> str:
-    """
-    Provides a summary of script types and their weight implications.
-    """
     script_types = set()
     for item in inputs + outputs:
         if 'script_type' in item:
