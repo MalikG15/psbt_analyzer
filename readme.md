@@ -36,6 +36,7 @@ If the PSBT can be decoded and is a valid PSBT, you should see it an analysis im
 After analyzing the PSBT data once, you can then run a coin selection simulation which will attempt different strategies and show the associated changes if those strategies were chosen:
 
 <img width="418" height="653" alt="Screenshot 2025-08-25 at 7 23 43 PM" src="https://github.com/user-attachments/assets/f7de032c-4c42-4e8e-ad22-439a8fe5b1fc" />
+
 ## Editing the PSBT
 You'll then be prompted to edit the PSBT via defined options:
 
