@@ -1,10 +1,10 @@
 import argparse
 from rich.console import Console
-from rich.table import Table
 from bitcointx.core.psbt import PartiallySignedTransaction
 from bitcointx.core.script import CScript
 from bitcointx.wallet import CBitcoinAddress
 import fee_service
+import output_util
 
 script_types = ['pubkeyhash', 'scripthash', 'witness_v0_keyhash', 'witness_v0_scripthash', 'witness_v1_taproot']
 
@@ -85,6 +85,26 @@ def fee_reasonableness_suggestion(rate: float, estimates: dict) -> str:
         return f"The fee rate of {rate:.2f} sats/vB is very high. You might be overpaying."
     return f"The fee rate of {rate:.2f} sats/vB is reasonable for a fast confirmation."
 
+def format_script_type_summary(inputs: list, outputs: list) -> str:
+    """
+    Provides a summary of script types and their weight implications.
+    """
+    script_types = set()
+    for item in inputs + outputs:
+        if 'script_type' in item:
+            script_types.add(item['script_type'])
+
+    summary = []
+    if 'witness_v1_taproot' in script_types:
+        summary.append("Taproot scripts are used, providing maximum efficiency and privacy.")
+    if 'witness_v0_keyhash' in script_types or 'witness_v0_scripthash' in script_types:
+        summary.append("SegWit scripts are used, which are more space-efficient.")
+    if 'pubkeyhash' in script_types or 'scripthash' in script_types:
+        summary.append("Legacy scripts are used, which have higher transaction weight.")
+
+    return " ".join(summary)
+
+
 def parse_psbt_input(psbt_base64: str):
     try:
         psbt_obj = PartiallySignedTransaction.from_base64(b64_data = psbt_base64)
@@ -159,8 +179,8 @@ def parse_psbt_input(psbt_base64: str):
         total_estimated_input_output_vbytes_size =  estimate_output_vbytes + estimated_input_vbytes
         fee_rate = fee / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
         
-        parsed_data["fee"] = fee
-        parsed_data["fee_rate"] = fee_rate
+        parsed_data["inferred_fee"] = fee
+        parsed_data["inferred_fee_rate"] = fee_rate
         
         fetched_fee_rates = fee_service.get_recommended_fees()
         fee_reasonableness = {
@@ -173,6 +193,9 @@ def parse_psbt_input(psbt_base64: str):
             parsed_data["change_output"]["reason"] = change_reason
         
         parsed_data["fee_reasonableness"] = fee_reasonableness
+        parsed_data["total_input_value"] = total_btc_input_amount
+        parsed_data["total_output_value"] = total_btc_output_amount
+        parsed_data["script_summary"] = format_script_type_summary(parsed_data["inputs"], parsed_data["outputs"])
 
         return parsed_data
     except Exception as e:
@@ -202,7 +225,7 @@ def analyze_psbt():
             console.print("[bold red]Error:[/bold red] File not found.")
             return
     
-    print(parse_psbt_input(psbt_data_input))
+    output_util.display_analysis(parse_psbt_input(psbt_data_input))
 
 if __name__ == "__main__":
     analyze_psbt()
