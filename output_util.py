@@ -62,10 +62,10 @@ def display_coin_simulation(coin_simulation: dict):
             return
 
         table.add_row("Selected amounts", str(data["selected"]))
-        table.add_row("Total inputs amounts", str(data["total_input"]))
-        table.add_row("Inferred fee", str(data["fee"]))
-        table.add_row("Inferred transaction size", str(data["vsize"]))
-        table.add_row("Inferred fee rate", str(data["effective_rate"]))
+        table.add_row("Total inputs amounts", f"{format_sats_to_btc(data['total_input']):.8f} BTC")
+        table.add_row("Inferred fee", f"{format_sats_to_btc(data['fee']):.8f} BTC")
+        table.add_row("Inferred transaction size", f"{format_sats_to_btc(data['vsize']):.8f} vBytes")
+        table.add_row("Inferred fee rate", f"{data['effective_rate']:.2f} sats/vB")
         console.print(table)
 
 

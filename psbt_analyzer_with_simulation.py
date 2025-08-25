@@ -8,7 +8,6 @@ import copy
 import fee_service
 import output_util
 import random
-import pprint
 
 script_types = ['pubkeyhash', 'scripthash', 'witness_v0_keyhash', 'witness_v0_scripthash', 'witness_v1_taproot']
 
