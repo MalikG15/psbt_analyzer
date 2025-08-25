@@ -191,8 +191,12 @@ def parse_psbt_input(psbt_base64: str):
                 likely_change_output_index = i
 
         fee = total_btc_input_amount - total_btc_output_amount
-        total_estimated_input_output_vbytes_size =  estimate_output_vbytes + estimated_total_input_size
-        fee_rate = fee / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
+        input_count = len(psbt_obj.unsigned_tx.vin)
+        output_count = len(psbt_obj.unsigned_tx.vout)
+        input_varint = 1 if input_count < 253 else 3
+        output_varint = 1 if output_count < 253 else 3
+        total_estimated_vbytes = estimated_total_input_size + estimate_output_vbytes + 10 + input_varint + output_varint
+        fee_rate = fee / total_estimated_vbytes if total_estimated_vbytes > 0 else 0
         
         if fee < 0:
             console.print("[bold red]Warning: Negative fee detected in parsing![/bold red]")
@@ -250,14 +254,14 @@ def estimate_tx_vsize(num_inputs, num_outputs, input_vbytes_list, output_vbytes_
     total_output_vbytes = sum(output_vbytes_list)
     return base_size + input_varint + output_varint + total_input_vbytes + total_output_vbytes
 
-def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_output_vbytes=34):
+def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_output_vbytes=34, target_output_vbytes=[34]):
     """Basic coin selection simulation."""
     if strategy == 'smallest_first':
         utxos = sorted(utxos, key=lambda x: x['amount'])
     elif strategy == 'largest_first':
         utxos = sorted(utxos, key=lambda x: x['amount'], reverse=True)
     elif strategy == 'random':
-        random.shuffle(utxos)
+        utxos = random.sample(utxos, len(utxos))
     else:
         raise ValueError("Unknown strategy")
     
@@ -271,8 +275,8 @@ def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_out
         selected_vbytes.append(utxo['estimated_vbytes'])
         
         # Estimate vsize with change output if needed
-        num_outputs = 2  # target + change
-        output_vbytes_list = [34, change_output_vbytes]  # assume standard
+        num_outputs = len(target_output_vbytes) + 1  # targets + change
+        output_vbytes_list = target_output_vbytes + [change_output_vbytes]
         vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
         fee = int(vsize * fee_rate)  # int for sats
         
@@ -289,8 +293,8 @@ def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_out
                 }
             else:
                 # No change
-                num_outputs = 1
-                output_vbytes_list = [34]
+                num_outputs = len(target_output_vbytes)
+                output_vbytes_list = target_output_vbytes
                 vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
                 fee = int(vsize * fee_rate)
                 if total >= target + fee:
@@ -308,16 +312,25 @@ def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_out
 def simulate_coin_selection(parsed_data, fee_rate):
     if parsed_data['inferred_fee'] < 0:
         return {"error": "Negative fee, simulation skipped"}
+    
     utxos = get_utxos_from_inputs(parsed_data['inputs'])
-    print(utxos)
     target = calculate_target_amount(parsed_data)
+    
+    change_output_vbytes = parsed_data['change_output'].get('estimated_output_vb', 34) if parsed_data['change_output'] else 34
+    
+    non_change_outputs = [out for out in parsed_data['outputs'] if out != parsed_data['change_output']]
+    target_output_vbytes = [out['estimated_output_vb'] for out in non_change_outputs]
+    
     strategies = ['largest_first', 'smallest_first', 'random']
     
     results = {}
     for strategy in strategies:
-        result = coin_selection(utxos, target, fee_rate, strategy)
+        # Pass a copy of utxos to each call to ensure independence
+        result = coin_selection(copy.deepcopy(utxos), target, fee_rate, strategy, change_output_vbytes, target_output_vbytes)
         if result:
             results[strategy] = result
+        else:
+            results[strategy] = {"error": "Insufficient funds for this strategy"}
     
     return results
 
@@ -400,7 +413,11 @@ def edit_parsed_data(parsed_data):
     
     estimated_total_input_size = sum(inp['estimated_input_vbytes'] for inp in parsed_data['inputs'])
     estimate_output_vbytes = sum(out['estimated_output_vb'] for out in parsed_data['outputs'])
-    total_estimated_vbytes = estimated_total_input_size + estimate_output_vbytes + 10 + 2  # approximate varints
+    input_count = len(parsed_data['inputs'])
+    output_count = len(parsed_data['outputs'])
+    input_varint = 1 if input_count < 253 else 3
+    output_varint = 1 if output_count < 253 else 3
+    total_estimated_vbytes = estimated_total_input_size + estimate_output_vbytes + 10 + input_varint + output_varint
     parsed_data['inferred_fee_rate'] = parsed_data['inferred_fee'] / total_estimated_vbytes if total_estimated_vbytes > 0 else 0
     
     if parsed_data['inferred_fee'] < 0:
@@ -413,8 +430,13 @@ def edit_parsed_data(parsed_data):
     
     parsed_data['script_summary'] = format_script_type_summary(parsed_data['inputs'], parsed_data['outputs'])
     
-    # Skip change detection for edited, as metadata is lost
-    parsed_data['change_output'] = {}
+    # Assume last output as change after edit if multiple outputs
+    if len(parsed_data['outputs']) > 1:
+        likely_change_output_index = len(parsed_data['outputs']) - 1
+        parsed_data['change_output'] = parsed_data['outputs'][likely_change_output_index]
+        parsed_data['change_output']['reason'] = "Assumed last output as change after edit"
+    else:
+        parsed_data['change_output'] = {}
     
     return parsed_data
 
