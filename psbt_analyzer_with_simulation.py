@@ -1,12 +1,13 @@
 import argparse
+import random
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
 from bitcointx.core.psbt import PartiallySignedTransaction
 from bitcointx.core.script import CScript
 from bitcointx.wallet import CBitcoinAddress
-import random
 import copy
-import pprint
+import fee_service
+import output_util
 
 script_types = ['pubkeyhash', 'scripthash', 'witness_v0_keyhash', 'witness_v0_scripthash', 'witness_v1_taproot']
 
@@ -114,13 +115,6 @@ def format_script_type_summary(inputs: list, outputs: list) -> str:
     return " ".join(summary)
 
 
-def get_recommended_fees():
-    return {
-        'halfHourFee': random.randint(5, 15),
-        'hourFee': random.randint(10, 20),
-        'fastestFee': random.randint(30, 60)
-    }
-
 def parse_psbt_input(psbt_base64: str):
     try:
         psbt_obj = PartiallySignedTransaction.from_base64(b64_data = psbt_base64)
@@ -206,7 +200,7 @@ def parse_psbt_input(psbt_base64: str):
         parsed_data["inferred_fee"] = fee
         parsed_data["inferred_fee_rate"] = fee_rate
         
-        fetched_fee_rates = get_recommended_fees()
+        fetched_fee_rates = fee_service.get_recommended_fees()
         fee_reasonableness = {
             "suggestion": "Invalid: negative fee" if fee == 0 and total_btc_input_amount - total_btc_output_amount < 0 else fee_reasonableness_suggestion(fee_rate, fetched_fee_rates),
         }
@@ -425,7 +419,7 @@ def edit_parsed_data(parsed_data):
         parsed_data['inferred_fee'] = 0
         parsed_data['inferred_fee_rate'] = 0
     
-    fetched_fee_rates = get_recommended_fees()
+    fetched_fee_rates = fee_service.get_recommended_fees()
     parsed_data['fee_reasonableness']['suggestion'] = "Invalid: negative fee" if parsed_data['inferred_fee'] == 0 and parsed_data['total_input_value'] - parsed_data['total_output_value'] < 0 else fee_reasonableness_suggestion(parsed_data['inferred_fee_rate'], fetched_fee_rates)
     
     parsed_data['script_summary'] = format_script_type_summary(parsed_data['inputs'], parsed_data['outputs'])
@@ -439,10 +433,6 @@ def edit_parsed_data(parsed_data):
         parsed_data['change_output'] = {}
     
     return parsed_data
-
-def display_analysis(parsed_data):
-    console.print("[bold]PSBT Analysis:[/bold]")
-    pprint.pprint(parsed_data)
 
 def analyze_psbt():
     """
@@ -471,14 +461,14 @@ def analyze_psbt():
         return
     
     while True:
-        display_analysis(parsed_data)
+        output_util.display_analysis(parsed_data)
         
         # Simulate coin selection
         if Confirm.ask("Run coin selection simulation?"):
-            fee_rate = parsed_data['inferred_fee_rate'] if parsed_data['inferred_fee_rate'] > 0 else get_recommended_fees()['fastestFee']
+            fee_rate = parsed_data['inferred_fee_rate'] if parsed_data['inferred_fee_rate'] > 0 else fee_service.get_recommended_fees()['fastestFee']
             sim_results = simulate_coin_selection(parsed_data, fee_rate)
             console.print("\n[bold]Coin Selection Simulation:[/bold]")
-            pprint.pprint(sim_results)
+            console.print(sim_results)
         
         # Edit
         if Confirm.ask("Edit the PSBT data?"):
