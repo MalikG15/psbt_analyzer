@@ -25,6 +25,7 @@ python3 psbt_analyzer_with_simulation.py --file ./tests/example_psbt_3.psbt
 ```
 
 If the PSBT can be decoded and is a valid PSBT, you should see it an analysis immediately after entering any of the above commands:
+
 <img width="565" height="467" alt="Screenshot 2025-08-25 at 7 11 23 PM" src="https://github.com/user-attachments/assets/f64a8c9c-783e-4577-87ed-f3d552073ce7" />
 
 The analysis will include:
@@ -38,10 +39,13 @@ The analysis will include:
 8. A summary of the detected change output
 
 After analyzing the PSBT data once, you can then run a coin selection simulation which will attempt different strategies and show the associated changes if those strategies were chosen:
+
 <img width="456" height="656" alt="Screenshot 2025-08-25 at 7 13 56 PM" src="https://github.com/user-attachments/assets/5ee42e70-ec52-44a5-85b4-e2a8d21273fb" />
 
 You'll then be prompted to edit the PSBT via defined options:
+
 <img width="274" height="144" alt="Screenshot 2025-08-25 at 7 15 18 PM" src="https://github.com/user-attachments/assets/5a918f53-6a50-4783-b3de-d2b42f7b9d71" />
+
 
 Once the PSBT edit is completed, the analysis can be re-run!
 # Learnings
