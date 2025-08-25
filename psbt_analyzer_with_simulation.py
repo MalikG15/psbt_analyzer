@@ -1,5 +1,4 @@
 import argparse
-import random
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
 from bitcointx.core.psbt import PartiallySignedTransaction
@@ -8,6 +7,8 @@ from bitcointx.wallet import CBitcoinAddress
 import copy
 import fee_service
 import output_util
+import random
+import pprint
 
 script_types = ['pubkeyhash', 'scripthash', 'witness_v0_keyhash', 'witness_v0_scripthash', 'witness_v1_taproot']
 
@@ -400,10 +401,9 @@ def edit_parsed_data(parsed_data):
         elif choice == "6":
             break
     
-    # Recompute totals and fees
+    # Recompute totals and vbytes
     parsed_data['total_input_value'] = sum(inp['amount'] for inp in parsed_data['inputs'])
     parsed_data['total_output_value'] = sum(out['amount'] for out in parsed_data['outputs'])
-    parsed_data['inferred_fee'] = parsed_data['total_input_value'] - parsed_data['total_output_value']
     
     estimated_total_input_size = sum(inp['estimated_input_vbytes'] for inp in parsed_data['inputs'])
     estimate_output_vbytes = sum(out['estimated_output_vb'] for out in parsed_data['outputs'])
@@ -412,17 +412,6 @@ def edit_parsed_data(parsed_data):
     input_varint = 1 if input_count < 253 else 3
     output_varint = 1 if output_count < 253 else 3
     total_estimated_vbytes = estimated_total_input_size + estimate_output_vbytes + 10 + input_varint + output_varint
-    parsed_data['inferred_fee_rate'] = parsed_data['inferred_fee'] / total_estimated_vbytes if total_estimated_vbytes > 0 else 0
-    
-    if parsed_data['inferred_fee'] < 0:
-        console.print("[bold red]Warning: Negative fee! Please add more inputs or reduce outputs.[/bold red]")
-        parsed_data['inferred_fee'] = 0
-        parsed_data['inferred_fee_rate'] = 0
-    
-    fetched_fee_rates = fee_service.get_recommended_fees()
-    parsed_data['fee_reasonableness']['suggestion'] = "Invalid: negative fee" if parsed_data['inferred_fee'] == 0 and parsed_data['total_input_value'] - parsed_data['total_output_value'] < 0 else fee_reasonableness_suggestion(parsed_data['inferred_fee_rate'], fetched_fee_rates)
-    
-    parsed_data['script_summary'] = format_script_type_summary(parsed_data['inputs'], parsed_data['outputs'])
     
     # Assume last output as change after edit if multiple outputs
     if len(parsed_data['outputs']) > 1:
@@ -431,6 +420,51 @@ def edit_parsed_data(parsed_data):
         parsed_data['change_output']['reason'] = "Assumed last output as change after edit"
     else:
         parsed_data['change_output'] = {}
+    
+    # Adjust change output if present
+    if parsed_data['change_output']:
+        non_change_outputs = [out for out in parsed_data['outputs'] if out != parsed_data['change_output']]
+        target = sum(out['amount'] for out in non_change_outputs)
+        
+        fetched_fee_rates = fee_service.get_recommended_fees()
+        fee_rate = fetched_fee_rates['hourFee']  # Use hourFee for reasonable confirmation
+        
+        fee = int(total_estimated_vbytes * fee_rate)
+        
+        if parsed_data['total_input_value'] >= target + fee + 546:  # dust threshold
+            new_change = parsed_data['total_input_value'] - target - fee
+            parsed_data['change_output']['amount'] = new_change
+            parsed_data['total_output_value'] = target + new_change
+            parsed_data['inferred_fee'] = fee
+            parsed_data['inferred_fee_rate'] = fee_rate
+            parsed_data['fee_reasonableness']['suggestion'] = fee_reasonableness_suggestion(fee_rate, fetched_fee_rates)
+        else:
+            # Try without change
+            vbytes_without_change = total_estimated_vbytes - parsed_data['change_output']['estimated_output_vb']
+            # Adjust output varint if needed (simplify: subtract 1 for count if it changes varint, but rare)
+            if output_count - 1 < 253 and output_count >= 253:
+                vbytes_without_change -= 2  # from 3 to 1
+            fee_without = int(vbytes_without_change * fee_rate)
+            if parsed_data['total_input_value'] >= target + fee_without:
+                console.print("[yellow]Change would be dust or negative; removing change output and adjusting fee.[/yellow]")
+                parsed_data['outputs'].pop(likely_change_output_index)
+                parsed_data['total_output_value'] = target
+                parsed_data['inferred_fee'] = parsed_data['total_input_value'] - target
+                parsed_data['inferred_fee_rate'] = parsed_data['inferred_fee'] / vbytes_without_change if vbytes_without_change > 0 else 0
+                parsed_data['change_output'] = {}
+                parsed_data['fee_reasonableness']['suggestion'] = fee_reasonableness_suggestion(parsed_data['inferred_fee_rate'], fetched_fee_rates)
+            else:
+                console.print("[bold red]Insufficient funds even without change.[/bold red]")
+                parsed_data['inferred_fee'] = parsed_data['total_input_value'] - parsed_data['total_output_value']
+                parsed_data['inferred_fee_rate'] = 0
+    else:
+        # No change, excess to fee
+        parsed_data['inferred_fee'] = parsed_data['total_input_value'] - parsed_data['total_output_value']
+        parsed_data['inferred_fee_rate'] = parsed_data['inferred_fee'] / total_estimated_vbytes if total_estimated_vbytes > 0 else 0
+        fetched_fee_rates = fee_service.get_recommended_fees()
+        parsed_data['fee_reasonableness']['suggestion'] = fee_reasonableness_suggestion(parsed_data['inferred_fee_rate'], fetched_fee_rates)
+    
+    parsed_data['script_summary'] = format_script_type_summary(parsed_data['inputs'], parsed_data['outputs'])
     
     return parsed_data
 
@@ -468,7 +502,7 @@ def analyze_psbt():
             fee_rate = parsed_data['inferred_fee_rate'] if parsed_data['inferred_fee_rate'] > 0 else fee_service.get_recommended_fees()['fastestFee']
             sim_results = simulate_coin_selection(parsed_data, fee_rate)
             console.print("\n[bold]Coin Selection Simulation:[/bold]")
-            console.print(sim_results)
+            pprint.pprint(sim_results)
         
         # Edit
         if Confirm.ask("Edit the PSBT data?"):
