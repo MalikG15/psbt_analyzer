@@ -249,7 +249,7 @@ def estimate_tx_vsize(num_inputs, num_outputs, input_vbytes_list, output_vbytes_
     total_output_vbytes = sum(output_vbytes_list)
     return base_size + input_varint + output_varint + total_input_vbytes + total_output_vbytes
 
-def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_output_vbytes=34, target_output_vbytes=[34]):
+def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_output_vbytes=34, target_output_vbytes=[34], force_no_change=False):
     """Basic coin selection simulation."""
     if strategy == 'smallest_first':
         utxos = sorted(utxos, key=lambda x: x['amount'])
@@ -269,38 +269,56 @@ def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_out
         total += utxo['amount']
         selected_vbytes.append(utxo['estimated_vbytes'])
         
-        # Estimate vsize with change output if needed
-        num_outputs = len(target_output_vbytes) + 1  # targets + change
-        output_vbytes_list = target_output_vbytes + [change_output_vbytes]
-        vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
-        fee = int(vsize * fee_rate)  # int for sats
-        
-        if total >= target + fee:
-            change = total - target - fee
-            if change > 546:  # dust threshold approx
+        if force_no_change:
+            # Only try no change
+            num_outputs = len(target_output_vbytes)
+            output_vbytes_list = target_output_vbytes
+            vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
+            min_fee = int(vsize * fee_rate)
+            if total >= target + min_fee:
+                actual_fee = total - target  # excess goes to fee
                 return {
-                    'selected': [s['amount'] for s in selected],  # simplify
+                    'selected': [s['amount'] for s in selected],
                     'total_input': total,
-                    'fee': fee,
-                    'change': change,
+                    'fee': actual_fee,
+                    'change': 0,
                     'vsize': vsize,
-                    'effective_rate': fee / vsize
+                    'effective_rate': actual_fee / vsize
                 }
-            else:
-                # No change
-                num_outputs = len(target_output_vbytes)
-                output_vbytes_list = target_output_vbytes
-                vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
-                fee = int(vsize * fee_rate)
-                if total >= target + fee:
+        else:
+            # Estimate vsize with change output if needed
+            num_outputs = len(target_output_vbytes) + 1  # targets + change
+            output_vbytes_list = target_output_vbytes + [change_output_vbytes]
+            vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
+            fee = int(vsize * fee_rate)  # int for sats
+            
+            if total >= target + fee:
+                change = total - target - fee
+                if change > 546:  # dust threshold approx
                     return {
                         'selected': [s['amount'] for s in selected],
                         'total_input': total,
                         'fee': fee,
-                        'change': 0,
+                        'change': change,
                         'vsize': vsize,
                         'effective_rate': fee / vsize
                     }
+                else:
+                    # No change
+                    num_outputs = len(target_output_vbytes)
+                    output_vbytes_list = target_output_vbytes
+                    vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
+                    fee = int(vsize * fee_rate)
+                    if total >= target + fee:
+                        actual_fee = fee + (total - (target + fee))  # add excess to fee if any
+                        return {
+                            'selected': [s['amount'] for s in selected],
+                            'total_input': total,
+                            'fee': actual_fee,
+                            'change': 0,
+                            'vsize': vsize,
+                            'effective_rate': actual_fee / vsize
+                        }
     
     return None  # Insufficient funds
 
@@ -316,12 +334,14 @@ def simulate_coin_selection(parsed_data, fee_rate):
     non_change_outputs = [out for out in parsed_data['outputs'] if out != parsed_data['change_output']]
     target_output_vbytes = [out['estimated_output_vb'] for out in non_change_outputs]
     
+    force_no_change = not bool(parsed_data['change_output'])
+    
     strategies = ['largest_first', 'smallest_first', 'random']
     
     results = {}
     for strategy in strategies:
         # Pass a copy of utxos to each call to ensure independence
-        result = coin_selection(copy.deepcopy(utxos), target, fee_rate, strategy, change_output_vbytes, target_output_vbytes)
+        result = coin_selection(copy.deepcopy(utxos), target, fee_rate, strategy, change_output_vbytes, target_output_vbytes, force_no_change)
         if result:
             results[strategy] = result
         else:
@@ -441,11 +461,10 @@ def edit_parsed_data(parsed_data):
         else:
             # Try without change
             vbytes_without_change = total_estimated_vbytes - parsed_data['change_output']['estimated_output_vb']
-            # Adjust output varint if needed (simplify: subtract 1 for count if it changes varint, but rare)
             if output_count - 1 < 253 and output_count >= 253:
                 vbytes_without_change -= 2  # from 3 to 1
-            fee_without_change = int(vbytes_without_change * fee_rate)
-            if parsed_data['total_input_value'] >= target + fee_without_change:
+            fee_without = int(vbytes_without_change * fee_rate)
+            if parsed_data['total_input_value'] >= target + fee_without:
                 console.print("[yellow]Change would be dust or negative; removing change output and adjusting fee.[/yellow]")
                 parsed_data['outputs'].pop(likely_change_output_index)
                 parsed_data['total_output_value'] = target
@@ -502,7 +521,7 @@ def analyze_psbt():
             fee_rate = parsed_data['inferred_fee_rate'] if parsed_data['inferred_fee_rate'] > 0 else fee_service.get_recommended_fees()['fastestFee']
             sim_results = simulate_coin_selection(parsed_data, fee_rate)
             console.print("\n[bold]Coin Selection Simulation:[/bold]")
-            pprint.pprint(sim_results)
+            output_util.display_coin_simulation(sim_results)
         
         # Edit
         if Confirm.ask("Edit the PSBT data?"):

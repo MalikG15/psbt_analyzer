@@ -45,6 +45,28 @@ def display_analysis(analysis_results: dict):
         change_table.add_row("Address", analysis_results['change_output'].get('address', 'N/A'))
         change_table.add_row("Reason", analysis_results['change_output'].get('reason', 'N/A'))
         console.print(change_table)
-        console.print("[dim]*Based on the largest value heuristic.[/dim]")
     else:
         console.print("No change output detected using a simple heuristic.")
+
+def display_coin_simulation(coin_simulation: dict):
+    """
+    Displays the coin simulation results in a structured format using Rich.
+    """
+    for strategy,data in coin_simulation.items():
+        table = Table(show_header=True, header_style="bold white")
+        console.print("\n[bold yellow]{strategy}[/bold yellow]".format(strategy = strategy))
+        table.add_column("Metric", style="dim", width=20)
+        table.add_column("Value")
+        
+        if not data:
+            return
+
+        table.add_row("Selected amounts", str(data["selected"]))
+        table.add_row("Total inputs amounts", str(data["total_input"]))
+        table.add_row("Inferred fee", str(data["fee"]))
+        table.add_row("Inferred transaction size", str(data["vsize"]))
+        table.add_row("Inferred fee rate", str(data["effective_rate"]))
+        console.print(table)
+
+
+
