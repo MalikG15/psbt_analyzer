@@ -73,12 +73,7 @@ def is_output_likely_change(psbt_out, amount, address, address_type, input_addre
     
     return (is_likely_change, change_reason)
 
-def determine_fee_reasonableness(fee_rate, fetched_fee_rates):
-    """Checks if the fee rate is within a reasonable range."""
-    return fetched_fee_rates["halfHourFee"] <= fee_rate <= fetched_fee_rates["fastestFee"]
-
 def fee_reasonableness_suggestion(rate: float, estimates: dict) -> str:
-    """Generates a suggestion based on the fee rate."""
     if rate < estimates["halfHourFee"]:
         return f"The fee rate of {rate:.2f} sats/vB seems low. It may take longer than 30 minutes to confirm."
     if rate > estimates["fastestFee"]:
@@ -183,7 +178,6 @@ def parse_psbt_input(psbt_base64: str):
         
         fetched_fee_rates = fee_service.get_recommended_fees()
         fee_reasonableness = {
-            "is_reasonable": determine_fee_reasonableness(fee_rate, fetched_fee_rates),
             "suggestion": fee_reasonableness_suggestion(fee_rate, fetched_fee_rates),
         }
 
