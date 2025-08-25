@@ -3,6 +3,7 @@ from rich.console import Console
 from bitcointx.core.psbt import PartiallySignedTransaction
 from bitcointx.core.script import CScript
 from bitcointx.wallet import CBitcoinAddress
+import fee_service
 
 # Initialize Rich console for pretty output
 console = Console()
@@ -68,6 +69,18 @@ def is_output_likely_change(psbt_out, amount, address, address_type, input_addre
             change_reason = "Has fresh address of matching type, non-round amount"
     
     return (is_likely_change, change_reason)
+
+def determine_fee_reasonableness(fee_rate, fetched_fee_rates):
+    """Checks if the fee rate is within a reasonable range."""
+    return fetched_fee_rates["halfHourFee"] <= fee_rate <= fetched_fee_rates["fastestFee"]
+
+def fee_reasonableness_suggestion(rate: float, estimates: dict) -> str:
+    """Generates a suggestion based on the fee rate."""
+    if rate < estimates["halfHourFee"]:
+        return f"The fee rate of {rate:.2f} sats/vB seems low. It may take longer than 30 minutes to confirm."
+    if rate > estimates["fastestFee"]:
+        return f"The fee rate of {rate:.2f} sats/vB is very high. You might be overpaying."
+    return f"The fee rate of {rate:.2f} sats/vB is reasonable for a fast confirmation."
 
 def parse_psbt_input(psbt_base64: str):
     try:
@@ -139,12 +152,24 @@ def parse_psbt_input(psbt_base64: str):
             if is_likely_change:
                 likely_change_output_index = i
 
-        parsed_data["fee"] = total_btc_input_amount - total_btc_output_amount
+        fee = total_btc_input_amount - total_btc_output_amount
         total_estimated_input_output_vbytes_size =  estimate_output_vbytes + estimated_input_vbytes
-        parsed_data["fee_rate"] = parsed_data["fee"] / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
+        fee_rate = fee / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
+        
+        parsed_data["fee"] = fee
+        parsed_data["fee_rate"] = fee_rate
+        
+        fetched_fee_rates = fee_service.get_recommended_fees()
+        fee_reasonableness = {
+            "is_reasonable": determine_fee_reasonableness(fee_rate, fetched_fee_rates),
+            "suggestion": fee_reasonableness_suggestion(fee_rate, fetched_fee_rates),
+        }
+
         parsed_data["change_output"] = parsed_data["outputs"][likely_change_output_index] if likely_change_output_index != -1 else {}
         if parsed_data["change_output"]:
             parsed_data["change_output"]["reason"] = change_reason
+        
+        parsed_data["fee_reasonableness"] = fee_reasonableness
 
         return parsed_data
     except Exception as e:
