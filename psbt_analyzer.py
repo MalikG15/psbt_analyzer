@@ -55,15 +55,17 @@ def estimate_output_vbyte_from_script(script):
     varint_len = 1 if script_len < 253 else 3
     return 8 + varint_len + script_len
 
-def is_output_likely_change(psbt, psbt_out, address, address_type, input_addresses):
+def is_output_likely_change(psbt_out, amount, address, address_type, input_address_types, input_addresses):
     is_likely_change = False
     change_reason = ""
     if hasattr(psbt_out, 'bip32_derivation') and psbt_out.bip32_derivation or psbt_out.redeem_script or psbt_out.witness_script:
         is_likely_change = True
-        change_reason = " (likely change: has BIP32 derivation or script metadata)"
-    elif address not in input_addresses and any(address_type == addr_type for addr_type in [str(CBitcoinAddress.from_scriptPubKey(utxo.scriptPubKey)).split(':')[0] for utxo in [psbt.inputs[j].witness_utxo or psbt.inputs[j].non_witness_utxo.vout[psbt.unsigned_tx.vin[j].prevout.n] for j in range(len(psbt.inputs))]]):
-        is_likely_change = True
-        change_reason = " (likely change: fresh address of matching type)"
+        change_reason = "Has BIP32 derivation or script metadata"
+    else:
+        is_round = (amount % 100000 == 0)
+        if address_type in input_address_types and address not in input_addresses and 'OP_RETURN' not in address_type and not is_round:
+            is_likely_change = True
+            change_reason = "Has fresh address of matching type, non-round amount"
     
     return (is_likely_change, change_reason)
 
@@ -84,6 +86,7 @@ def parse_psbt_input(psbt_base64: str):
         estimate_output_vbytes = 0
 
         input_address_types = []
+        input_addresses = []
         for i, txin in enumerate(psbt_obj.unsigned_tx.vin):
             psbt_in = psbt_obj.inputs[i]
             if psbt_in.witness_utxo:
@@ -97,6 +100,7 @@ def parse_psbt_input(psbt_base64: str):
             
             (script_type, address, address_type) = get_script_and_address_info(utxo.scriptPubKey)
             input_address_types.append(address_type)
+            input_addresses.append(address)
 
             estimated_input_vbytes = estimate_input_vbytes_from_script_type(script_type)
             estimated_total_input_size += estimated_input_vbytes
@@ -111,7 +115,7 @@ def parse_psbt_input(psbt_base64: str):
                 "estimated_input_vbytes": estimated_input_vbytes
             })
 
-        likely_change_output_index = None
+        likely_change_output_index = -1
         change_reason = ""
         for i, txout in enumerate(psbt_obj.unsigned_tx.vout):
             psbt_out = psbt_obj.outputs[i]
@@ -131,14 +135,14 @@ def parse_psbt_input(psbt_base64: str):
                 "estimated_output_vb": estimated_size
             })
 
-            is_likely_change, change_reason = is_output_likely_change(psbt_obj, psbt_out, address, address_type, input_address_types)
+            is_likely_change, change_reason = is_output_likely_change(psbt_out, amount, address, address_type, input_address_types, input_addresses)
             if is_likely_change:
                 likely_change_output_index = i
 
         parsed_data["fee"] = total_btc_input_amount - total_btc_output_amount
         total_estimated_input_output_vbytes_size =  estimate_output_vbytes + estimated_input_vbytes
         parsed_data["fee_rate"] = parsed_data["fee"] / total_estimated_input_output_vbytes_size if total_estimated_input_output_vbytes_size > 0 else 0
-        parsed_data["change_output"] = parsed_data["outputs"][likely_change_output_index] if likely_change_output_index else {}
+        parsed_data["change_output"] = parsed_data["outputs"][likely_change_output_index] if likely_change_output_index != -1 else {}
         if parsed_data["change_output"]:
             parsed_data["change_output"]["reason"] = change_reason
 
