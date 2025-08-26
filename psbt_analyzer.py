@@ -250,7 +250,7 @@ def estimate_tx_vsize(num_inputs, num_outputs, input_vbytes_list, output_vbytes_
     total_output_vbytes = sum(output_vbytes_list)
     return base_size + input_varint + output_varint + total_input_vbytes + total_output_vbytes
 
-def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_output_vbytes=34, target_output_vbytes=[34], force_no_change=False):
+def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_output_vbytes=34, target_output_vbytes=[34], force_no_change=False, num_outputs=0):
     """Basic coin selection simulation based on strategy."""
     if strategy == 'smallest_first':
         utxos = sorted(utxos, key=lambda x: x['amount'])
@@ -272,7 +272,6 @@ def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_out
         
         if force_no_change:
             # Only try no change
-            num_outputs = len(target_output_vbytes)
             output_vbytes_list = target_output_vbytes
             vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
             min_fee = int(vsize * fee_rate)
@@ -288,9 +287,9 @@ def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_out
                 }
         else:
             # Estimate vsize with change output if needed
-            num_outputs = len(target_output_vbytes) + 1  # targets + change
+            num_outputs_w_change = num_outputs + 1  # targets + change
             output_vbytes_list = target_output_vbytes + [change_output_vbytes]
-            vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
+            vsize = estimate_tx_vsize(len(selected), num_outputs_w_change, selected_vbytes, output_vbytes_list)
             fee = int(vsize * fee_rate)  # int for sats
             
             if total >= target + fee:
@@ -306,7 +305,6 @@ def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_out
                     }
                 else:
                     # No change
-                    num_outputs = len(target_output_vbytes)
                     output_vbytes_list = target_output_vbytes
                     vsize = estimate_tx_vsize(len(selected), num_outputs, selected_vbytes, output_vbytes_list)
                     fee = int(vsize * fee_rate)
@@ -343,7 +341,7 @@ def simulate_coin_selection(parsed_data, fee_rate):
     results = {}
     for strategy in strategies:
         # Pass a copy of utxos to each call to ensure independence
-        result = coin_selection(copy.deepcopy(utxos), target, fee_rate, strategy, change_output_vbytes, target_output_vbytes, force_no_change)
+        result = coin_selection(copy.deepcopy(utxos), target, fee_rate, strategy, change_output_vbytes, target_output_vbytes, force_no_change, len(parsed_data["outputs"]))
         if result:
             results[strategy] = result
         else:
