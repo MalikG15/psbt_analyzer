@@ -65,19 +65,20 @@ def estimate_output_vbyte_from_script(script):
 def estimate_output_vbyte_from_script_type(script_type):
     # Simplified: assuming standard script lengths
     if script_type == 'pubkeyhash':
-        return 25  # OP_DUP OP_HASH160 20 OP_EQUALVERIFY OP_CHECKSIG
+        return 25
     elif script_type == 'scripthash':
-        return 23  # OP_HASH160 20 OP_EQUAL
+        return 23
     elif script_type == 'witness_v0_keyhash':
-        return 22  # OP_0 20
+        return 22
     elif script_type == 'witness_v0_scripthash':
-        return 34  # OP_0 32
+        return 34
     elif script_type == 'witness_v1_taproot':
-        return 34  # OP_1 32
+        return 34
     else:
         return 34  # default
 
 def is_output_likely_change(psbt_out, amount, address, address_type, input_address_types, input_addresses):
+    """Does a best effort check of which output is change."""
     is_likely_change = False
     change_reason = ""
     if hasattr(psbt_out, 'bip32_derivation') and psbt_out.bip32_derivation or psbt_out.redeem_script or psbt_out.witness_script:
@@ -92,6 +93,7 @@ def is_output_likely_change(psbt_out, amount, address, address_type, input_addre
     return (is_likely_change, change_reason)
 
 def fee_reasonableness_suggestion(rate: float, estimates: dict) -> str:
+    """Determines fee reasonableness based on calculated rate."""
     if rate < estimates["halfHourFee"]:
         return f"The fee rate of {rate:.2f} sats/vB seems low. It may take longer than 30 minutes to confirm."
     if rate > estimates["fastestFee"]:
@@ -99,6 +101,7 @@ def fee_reasonableness_suggestion(rate: float, estimates: dict) -> str:
     return f"The fee rate of {rate:.2f} sats/vB is reasonable for a fast confirmation."
 
 def format_script_type_summary(inputs: list, outputs: list) -> str:
+    """Determines the script type summary based on inputs and outputs script types."""
     script_types = set()
     for item in inputs + outputs:
         if 'script_type' in item:
@@ -116,6 +119,7 @@ def format_script_type_summary(inputs: list, outputs: list) -> str:
 
 
 def parse_psbt_input(psbt_base64: str):
+    """Analyzes the original PSBT input."""
     try:
         psbt_obj = PartiallySignedTransaction.from_base64(b64_data = psbt_base64)
 
@@ -219,8 +223,6 @@ def parse_psbt_input(psbt_base64: str):
         console.print(f"[bold red]Error parsing PSBT with python-bitcointx:[/bold red] {e}")
         return None
 
-# New functions for coin selection simulation
-
 def get_utxos_from_inputs(inputs):
     """Extract UTXOs from parsed inputs for simulation."""
     utxos = []
@@ -240,7 +242,7 @@ def calculate_target_amount(parsed_data):
         return parsed_data['total_output_value']
 
 def estimate_tx_vsize(num_inputs, num_outputs, input_vbytes_list, output_vbytes_list):
-    """Estimate total vsize."""
+    """Estimate total vsize for edited PSBTs."""
     base_size = 10  # version + locktime
     input_varint = 1 if num_inputs < 253 else 3
     output_varint = 1 if num_outputs < 253 else 3
@@ -249,7 +251,7 @@ def estimate_tx_vsize(num_inputs, num_outputs, input_vbytes_list, output_vbytes_
     return base_size + input_varint + output_varint + total_input_vbytes + total_output_vbytes
 
 def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_output_vbytes=34, target_output_vbytes=[34], force_no_change=False):
-    """Basic coin selection simulation."""
+    """Basic coin selection simulation based on strategy."""
     if strategy == 'smallest_first':
         utxos = sorted(utxos, key=lambda x: x['amount'])
     elif strategy == 'largest_first':
@@ -322,6 +324,7 @@ def coin_selection(utxos, target, fee_rate, strategy='largest_first', change_out
     return None  # Insufficient funds
 
 def simulate_coin_selection(parsed_data, fee_rate):
+    """Simulate coin selection based on parsed data."""
     if parsed_data['inferred_fee'] < 0:
         return {"error": "Negative fee, simulation skipped"}
     
@@ -350,8 +353,8 @@ def simulate_coin_selection(parsed_data, fee_rate):
 
 # For editing PSBT - since we can't easily edit the PSBT object and re-sign, we'll edit the parsed_data structure
 # and assume re-analysis on modified data
-
 def edit_parsed_data(parsed_data):
+    """Creates the interface for editing the PSBT via the command line."""
     while True:
         console.print("\n[bold]Edit Menu:[/bold]")
         console.print("1. Add input")
