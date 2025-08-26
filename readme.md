@@ -48,11 +48,13 @@ You'll then be prompted to edit the PSBT via defined options:
 
 Once the PSBT edit is completed, the analysis can be re-run!
 # Learnings
-I learned a great deal about PSBTs while doing this project. I had interacted with PSBTs before but of course never in such detail.
+I learned a great deal about PSBTs while doing this project. I had interacted with PSBTs before but never this technical.
 
-I think the main thing I learned was how the fiat system has got us so accustomed to transactions happening where the input matches the output and there is no change. It just seems like all payment information has be obfiscuated from us. Of course, when using a credit card, there are fees that are paid by the merchant where the card is being spent but even that is hidden from the consumer.
-
-Working on this PSBT project emphasized how it used to be when money transactions were between only the two parties involved. Everything has to be handled by either party a or party b which means handling fees and change if any.
+Here's a couple things I learned:
+- Fiat system is so seamless with debit/credit card payment rails managing inputs and outputs with no change
+- How managing money with no third party increases complexity of things like managing change
+- How fees are taken based on the difference of inputs and outputs thus explaining why fee mistakes sometimes occur
+- Python has a ton of useful libraries for making creating a great and interactive CLI interface so easy
 
 # Potential improvements
 This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved in several such as:
