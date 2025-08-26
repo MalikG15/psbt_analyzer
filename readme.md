@@ -50,10 +50,11 @@ Once the PSBT edit is completed, the analysis can be re-run!
 # Learnings
 I learned a great deal about PSBTs while doing this project. I had interacted with PSBTs before but never this technical.
 
-Here's a couple things I learned:
+Here's several things I learned:
 - Fiat system is so seamless with debit/credit card payment rails managing inputs and outputs with no change
 - How managing money with no third party increases complexity of things like managing change
 - How fees are taken based on the difference of inputs and outputs thus explaining why fee mistakes sometimes occur
+- Understanding what the current fees are is quite important and this project sheds a new light on the mempool policy debate that occurred in the btc community a month or two ago
 - Python has a ton of useful libraries for making creating a great and interactive CLI interface so easy
 
 # Potential improvements
