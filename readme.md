@@ -1,7 +1,7 @@
 # Overview
 This project takes in a Partially Signed Bitcoin Transaction and analyzes it via the command line interface. In addition, you can edit the PSBT by adding/removing inputs, adding/removing outputs, or changing the output amount.
 
-It will adjust the fee based on current fee rates from Mempool.space and determine new change.
+It will adjust the fee based on current fee rates from mempol.space and determine new change after edits.
 
 # Setup
 This project relies on some key libraries that can all be added via `pip install` and these include:
@@ -10,12 +10,10 @@ This project relies on some key libraries that can all be added via `pip install
 - requests 
 
 ## Fetching Current Fee Rates
-This project makes requests to mempool.space for current fee rates and pulls the API key from a file called `local.secrets`. To get the current fee rates, please create that file in the top level directory and add the api key to it. Otherwise, placeholder fee values will be used.
+This project makes requests to mempool.space for current fee rates and pulls the API key from a file called `local.secrets`. To get the current fee rates, please create that file at the top directory level and add the api key to it. Otherwise, placeholder fee values will be used.
 
 # Testing
-Included in this project are three example PSBTs found over the internet.
-
-You can test the PSBT Analyzer a couple of ways:
+Included in this project are three example PSBTs found over the internet. You can use these to test the functionality of the project.
 
 ## Starting the Program via the CLI
 You can execute the program in one of two ways:
@@ -31,7 +29,7 @@ python3 psbt_analyzer.py --file ./tests/example_psbt_3.psbt
 ```
 
 ## PSBT Analysis
-If the PSBT can be decoded and is a valid PSBT, you should see it an analysis immediately after entering any of the above commands:
+If the PSBT can be decoded and is a valid PSBT, you should see an analysis of it immediately after entering any of the above commands:
 
 <img width="565" height="467" alt="Screenshot 2025-08-25 at 7 11 23 PM" src="https://github.com/user-attachments/assets/f64a8c9c-783e-4577-87ed-f3d552073ce7" />
 
@@ -41,12 +39,16 @@ After analyzing the PSBT data once, you can then run a coin selection simulation
 <img width="418" height="653" alt="Screenshot 2025-08-25 at 7 23 43 PM" src="https://github.com/user-attachments/assets/f7de032c-4c42-4e8e-ad22-439a8fe5b1fc" />
 
 ## Editing the PSBT
-You'll then be prompted to edit the PSBT via defined options:
+You'll then be prompted to edit the PSBT via pre-defined options:
 
 <img width="274" height="144" alt="Screenshot 2025-08-25 at 7 15 18 PM" src="https://github.com/user-attachments/assets/5a918f53-6a50-4783-b3de-d2b42f7b9d71" />
 
 
 Once the PSBT edit is completed, the analysis can be re-run!
+
+## Exiting the Program
+You can exit the program by simply responding no when the program asks for a `[y/n]` response.
+
 # Learnings
 I learned a great deal about PSBTs while doing this project. I had interacted with PSBTs before but never this technical.
 
@@ -58,8 +60,9 @@ Here's several things I learned:
 - Python has a ton of useful libraries for making creating a great and interactive CLI interface so easy
 
 # Potential improvements
-This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved in several such as:
-- Finding more example PSBTs to test against (I had a ton of difficultly finding PSBTs that can be parsed correctly)
-- Failing open when a non number input is entered for the input or change amount
+This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved by:
+- Finding more example PSBTs to test against (I had a ton of difficultly finding base64 encoded PSBTs that can be parsed correctly)
+- Failing open when a non number input is entered for the input, output or change amount
 - Caching fee rate responses from mempool.space instead of making that call for each run
 - Comparing multiple PSBT's at once (like the original and an edit of the original)
+- Improving code readability by use more static variables like for the different pub key script types
