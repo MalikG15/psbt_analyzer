@@ -10,7 +10,7 @@ This project relies on some key libraries that can all be added via `pip install
 - requests 
 
 ## Fetching Current Fee Rates
-This project makes requests to mempool.space for current fee rates and pulls the API key from a file called `local.secrets`. To get the current fee rates, please create that file at the top directory level and add the api key to it. Otherwise, placeholder fee values will be used.
+This project makes requests to mempool.space for current fee rates and pulls the API key from a file called `local.secrets`. To get the current fee rates, please create that file at the top directory level and add the api key to it (no formatting of the API key is expected). Otherwise, placeholder fee values will be used.
 
 # Testing
 Included in this project are three example PSBTs found over the internet. You can use these to test the functionality of the project.
