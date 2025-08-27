@@ -29,7 +29,7 @@ python3 psbt_analyzer.py --file ./tests/example_psbt_3.psbt
 ```
 
 ## PSBT Analysis
-If the PSBT can be decoded and is a valid PSBT, you should see an analysis of it immediately after entering any of the above commands:
+If the PSBT can be decoded and is a valid PSBT, you should see an analysis of it immediately after entering either of the above commands:
 
 <img width="565" height="467" alt="Screenshot 2025-08-25 at 7 11 23 PM" src="https://github.com/user-attachments/assets/f64a8c9c-783e-4577-87ed-f3d552073ce7" />
 
