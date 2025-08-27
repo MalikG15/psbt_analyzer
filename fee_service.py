@@ -3,8 +3,8 @@ import os
 
 sample_response_upon_failure = {"fastestFee": 100, "halfHourFee": 50, "hourFee": 20, "economyFee": 5, "minimumFee": 1}
 
-# Function to read the API key from the local-secrets file
 def get_api_key():
+    """Function to read the API key from the local-secrets file"""
     secrets_file = 'local-secrets'
     if not os.path.exists(secrets_file):
         raise FileNotFoundError(f"The file {secrets_file} does not exist.")
@@ -12,8 +12,8 @@ def get_api_key():
         api_key = f.read().strip()
     return api_key
 
-# Function to get recommended fees from mempool.space
 def get_recommended_fees():
+    """Function to get recommended fees from mempool.space"""
     url = 'https://mempool.space/api/v1/fees/recommended'
     api_key = get_api_key()
     headers = {
