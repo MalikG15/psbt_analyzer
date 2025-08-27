@@ -17,7 +17,7 @@ def get_recommended_fees():
     url = 'https://mempool.space/api/v1/fees/recommended'
     api_key = get_api_key()
     headers = {
-        'x-api-key': api_key  # Assuming the API key is used as a custom header; adjust if needed
+        'x-api-key': api_key
     }
     try: 
         response = requests.get(url, headers=headers)
@@ -25,11 +25,3 @@ def get_recommended_fees():
         return response.json()
     except:
         return sample_response_upon_failure
-
-# Example usage (can be removed if this is used as a module)
-if __name__ == "__main__":
-    try:
-        fees = get_recommended_fees()
-        print(fees)
-    except Exception as e:
-        print(f"Error: {e}")
