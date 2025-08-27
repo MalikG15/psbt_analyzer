@@ -25,13 +25,13 @@ python3 psbt_analyzer.py --psbt cHNidP8BAKACAAAAAqsJSaCMWvfEm4IS9Bfi8Vqz9cM9zxU4
 
 2. Passing in a file path with a base64 encoded PSBT
 ```
-python3 psbt_analyzer.py --file ./tests/example_psbt_3.psbt
+python3 psbt_analyzer.py --file ./tests/example_psbt_2.psbt
 ```
 
 ## PSBT Analysis
 If the PSBT can be decoded and is a valid PSBT, you should see an analysis of it immediately after entering either of the above commands:
 
-<img width="565" height="467" alt="Screenshot 2025-08-25 at 7 11 23 PM" src="https://github.com/user-attachments/assets/f64a8c9c-783e-4577-87ed-f3d552073ce7" />
+<img width="613" height="466" alt="Screenshot 2025-08-27 at 7 42 54 PM" src="https://github.com/user-attachments/assets/0378e93c-be29-442b-8818-566370cd9df4" />
 
 ## Coin Selection Simulation
 After analyzing the PSBT data once, you can then run a coin selection simulation which will attempt different strategies and show the associated changes if those strategies were chosen:
