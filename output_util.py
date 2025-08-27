@@ -18,7 +18,7 @@ def display_analysis(analysis_results: dict):
     console.print("[bold green]PSBT Analysis Summary[/bold green]")
 
     table = Table(show_header=True, header_style="bold white")
-    table.add_column("Metric", style="dim", width=20)
+    table.add_column("Metric", width=20)
     table.add_column("Value")
     
     table.add_row("PSBT Version", str(analysis_results["version"]))
@@ -55,7 +55,7 @@ def display_coin_simulation(coin_simulation: dict):
     for strategy,data in coin_simulation.items():
         table = Table(show_header=True, header_style="bold white")
         console.print("\n[bold yellow]{strategy}[/bold yellow]".format(strategy = strategy))
-        table.add_column("Metric", style="dim", width=20)
+        table.add_column("Metric", width=20)
         table.add_column("Value")
         
         if not data:
