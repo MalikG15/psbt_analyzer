@@ -53,14 +53,13 @@ You can exit the program by simply responding no when the program asks for a `[y
 I learned a great deal about PSBTs while doing this project. I had interacted with PSBTs before but never this technical.
 
 Here's several things I learned:
-- Fiat system is so seamless with debit/credit card payment rails managing inputs and outputs with no change
-- How managing money with no third party increases complexity of things like managing change
-- How fees are taken based on the difference of inputs and outputs thus explaining why fee mistakes sometimes occur
+- The fiat system is so seamless with debit/credit card payment rails easily managing inputs and outputs with no change but of course this comes at the cost of a third party being involved when money is meant for only two (trustless) parties
+- How fees are taken by miners based on the difference of inputs and outputs which explains why someone might overpay on fees. (I've heard this happen a couple times and always wondered how a mistake like that could happen)
 - Understanding what the current fees are is quite important and this project sheds a new light on the mempool policy debate that occurred in the btc community a month or two ago
-- Python has a ton of useful libraries for making creating a great and interactive CLI interface so easy
+- Python has a ton of useful libraries to make it to create a great and interactive CLI interface
 
 # Potential improvements
-This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved by:
+This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved and we can do that by:
 - Finding more example PSBTs to test against (I had a ton of difficultly finding base64 encoded PSBTs that can be parsed correctly)
 - Failing open when a non number input is entered for the input, output or change amount
 - Caching fee rate responses from mempool.space instead of making that call for each run
