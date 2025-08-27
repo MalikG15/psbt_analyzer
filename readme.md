@@ -50,7 +50,7 @@ Once the PSBT edit is completed, the analysis can be re-run!
 You can exit the program by simply responding no when the program asks for a `[y/n]` response.
 
 # Learnings
-I learned a great deal about PSBTs while doing this project. I had interacted with PSBTs before but never this technical.
+I learned a great deal about PSBTs while doing this project. I had interacted with PSBTs before but never on a technical level.
 
 Here's several things I learned:
 - The fiat system is so seamless with debit/credit card payment rails easily managing inputs and outputs with no change but of course this comes at the cost of a third party being involved when money is meant for only two (trustless) parties
