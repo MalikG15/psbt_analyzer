@@ -181,7 +181,7 @@ def parse_psbt_input(psbt_base64: str):
                 "script_type": script_type,
                 "address": address,
                 "address_type": address_type,
-                "estimated_output_vb": estimated_size
+                "estimated_output_vbytes": estimated_size
             })
 
             is_likely_change, change_reason = is_output_likely_change(psbt_out, amount, address, address_type, input_address_types, input_addresses)
@@ -196,7 +196,7 @@ def parse_psbt_input(psbt_base64: str):
             fee_rate = 0
         else:
             input_vbytes_list = [input["estimated_input_vbytes"] for input in parsed_data["inputs"]]
-            output_vbytes_list = [output["estimated_output_vb"] for output in parsed_data["outputs"]]
+            output_vbytes_list = [output["estimated_output_vbytes"] for output in parsed_data["outputs"]]
             total_estimated_vbytes = estimate_tx_vsize(len(parsed_data["inputs"]), len(parsed_data["outputs"]), input_vbytes_list, output_vbytes_list)
             fee_rate = fee / total_estimated_vbytes if total_estimated_vbytes > 0 else 0
             
@@ -329,10 +329,10 @@ def simulate_coin_selection(parsed_data, fee_rate):
     utxos = get_utxos_from_inputs(parsed_data['inputs'])
     target = calculate_target_amount(parsed_data)
     
-    change_output_vbytes = parsed_data['change_output'].get('estimated_output_vb', 34) if parsed_data['change_output'] else 34
+    change_output_vbytes = parsed_data['change_output'].get('estimated_output_vbytes', 34) if parsed_data['change_output'] else 34
     
     non_change_outputs = [out for out in parsed_data['outputs'] if out != parsed_data['change_output']]
-    target_output_vbytes = [out['estimated_output_vb'] for out in non_change_outputs]
+    target_output_vbytes = [out['estimated_output_vbytes'] for out in non_change_outputs]
     
     force_no_change = not bool(parsed_data['change_output'])
     
@@ -395,7 +395,7 @@ def edit_parsed_data(parsed_data):
                 'script_type': script_type,
                 'address': 'edited',
                 'address_type': 'edited',
-                'estimated_output_vb': estimated_vb
+                'estimated_output_vbytes': estimated_vb
             })
             console.print("Output added.")
         
@@ -426,12 +426,10 @@ def edit_parsed_data(parsed_data):
     parsed_data['total_output_value'] = sum(out['amount'] for out in parsed_data['outputs'])
     
     estimated_total_input_size = sum(inp['estimated_input_vbytes'] for inp in parsed_data['inputs'])
-    estimate_output_vbytes = sum(out['estimated_output_vb'] for out in parsed_data['outputs'])
+    estimate_output_vbytes = sum(out['estimated_output_vbytes'] for out in parsed_data['outputs'])
     input_count = len(parsed_data['inputs'])
     output_count = len(parsed_data['outputs'])
-    input_varint = 1 if input_count < 253 else 3
-    output_varint = 1 if output_count < 253 else 3
-    total_estimated_vbytes = estimated_total_input_size + estimate_output_vbytes + 10 + input_varint + output_varint
+    total_estimated_vbytes = estimate_tx_vsize(input_count, output_count, estimated_total_input_size, estimate_output_vbytes)
     
     # Assume last output as change after edit if multiple outputs
     if len(parsed_data['outputs']) > 1:
@@ -460,7 +458,7 @@ def edit_parsed_data(parsed_data):
             parsed_data['fee_reasonableness']['suggestion'] = fee_reasonableness_suggestion(fee_rate, fetched_fee_rates)
         else:
             # Try without change
-            vbytes_without_change = total_estimated_vbytes - parsed_data['change_output']['estimated_output_vb']
+            vbytes_without_change = total_estimated_vbytes - parsed_data['change_output']['estimated_output_vbytes']
             if output_count - 1 < 253 and output_count >= 253:
                 vbytes_without_change -= 2  # from 3 to 1
             fee_without = int(vbytes_without_change * fee_rate)
