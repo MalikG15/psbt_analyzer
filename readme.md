@@ -1,7 +1,7 @@
 # Overview
 This project takes in a Partially Signed Bitcoin Transaction and analyzes it via the command line interface. In addition, you can edit the PSBT by adding/removing inputs, adding/removing outputs, or changing the output amount.
 
-It will adjust the fee based on current fee rates from mempol.space and determine new change after edits.
+It will adjust the fee based on current fee rates from mempol.space and determine new change after edits (if possible).
 
 # Setup
 This project relies on some key libraries that can all be added via `pip install` and these include:
