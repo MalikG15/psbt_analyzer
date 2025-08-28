@@ -189,17 +189,17 @@ def parse_psbt_input(psbt_base64: str):
                 likely_change_output_index = i
 
         fee = total_btc_input_amount - total_btc_output_amount
-        input_count = len(psbt_obj.unsigned_tx.vin)
-        output_count = len(psbt_obj.unsigned_tx.vout)
-        input_varint = 1 if input_count < 253 else 3
-        output_varint = 1 if output_count < 253 else 3
-        total_estimated_vbytes = estimated_total_input_size + estimate_output_vbytes + 10 + input_varint + output_varint
-        fee_rate = fee / total_estimated_vbytes if total_estimated_vbytes > 0 else 0
         
         if fee < 0:
             console.print("[bold red]Warning: Negative fee detected in parsing![/bold red]")
             fee = 0
             fee_rate = 0
+        else:
+            input_vbytes_list = [input["estimated_input_vbytes"] for input in parsed_data["inputs"]]
+            output_vbytes_list = [output["estimated_output_vb"] for output in parsed_data["outputs"]]
+            total_estimated_vbytes = estimate_tx_vsize(len(parsed_data["inputs"]), len(parsed_data["outputs"]), input_vbytes_list, output_vbytes_list)
+            fee_rate = fee / total_estimated_vbytes if total_estimated_vbytes > 0 else 0
+            
 
         parsed_data["inferred_fee"] = fee
         parsed_data["inferred_fee_rate"] = fee_rate
