@@ -62,7 +62,7 @@ Here's several things I learned:
 # Potential improvements
 This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved and we can do that by:
 - Finding more example PSBTs to test against (I had a ton of difficultly finding base64 encoded PSBTs that can be parsed correctly)
-- Failing open when a non number input is entered for the input, output or change amount
+- Failing open when a non number input is entered when creating a new input, output or change amount
 - Caching fee rate responses from mempool.space instead of making that call for each run
 - Comparing multiple PSBT's at once (like the original and an edit of the original)
 - Improving code readability by use more static variables like for the different pub key script types
