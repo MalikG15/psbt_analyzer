@@ -1,5 +1,5 @@
 # Overview
-This project takes in a Partially Signed Bitcoin Transaction and analyzes it via the command line interface. In addition, you can edit the PSBT by adding/removing inputs, adding/removing outputs, or changing the output amount.
+This project takes in a Partially Signed Bitcoin Transaction (PSBT) and analyzes it via the command line interface. In addition, you can edit the PSBT by adding/removing inputs, adding/removing outputs, or changing the output amount.
 
 It will adjust the fee based on current fee rates from mempol.space and determine new change after edits (if possible).
 
@@ -62,6 +62,7 @@ Here's several things I learned:
 # Potential improvements
 This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved and we can do that by:
 - Finding more example PSBTs to test against (I had a ton of difficultly finding base64 encoded PSBTs that can be parsed correctly)
+- Automatically creating change output if only 1 output exists after an edit
 - Failing open when a non number input is entered when creating a new input, output or change amount
 - Caching fee rate responses from mempool.space instead of making that call for each run
 - Comparing multiple PSBT's at once (like the original and an edit of the original)
