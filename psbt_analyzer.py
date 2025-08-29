@@ -425,9 +425,9 @@ def edit_parsed_data(parsed_data):
     parsed_data['total_input_value'] = sum(inp['amount'] for inp in parsed_data['inputs'])
     parsed_data['total_output_value'] = sum(out['amount'] for out in parsed_data['outputs'])
     
-    estimated_total_input_size = sum(inp['estimated_input_vbytes'] for inp in parsed_data['inputs'])
-    estimate_output_vbytes = sum(out['estimated_output_vbytes'] for out in parsed_data['outputs'])
-    input_count = len(parsed_data['inputs'])
+    estimated_total_input_size = [inp['estimated_input_vbytes'] for inp in parsed_data['inputs']]
+    estimate_output_vbytes = [out['estimated_output_vbytes'] for out in parsed_data['outputs']]
+    input_count = len(parsed_data['inputs'])    
     output_count = len(parsed_data['outputs'])
     total_estimated_vbytes = estimate_tx_vsize(input_count, output_count, estimated_total_input_size, estimate_output_vbytes)
     
