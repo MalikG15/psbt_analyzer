@@ -3,6 +3,8 @@ This project takes in a Partially Signed Bitcoin Transaction (PSBT) and analyzes
 
 It will adjust the fee based on current fee rates from mempol.space and determine new change after edits (if possible).
 
+Here's a [link](https://docs.google.com/document/d/1HUi98hxNd0j603sE1BS7fPruqjFKeqXLtPbAzYo2mIo/edit?usp=sharing) to the eng planning doc used to create this project.
+
 # Setup
 This project relies on some key libraries that can all be added via `pip install` and these include:
 - python-bitcointx
@@ -59,7 +61,7 @@ Here's several things I learned:
 - Receiving an accurate estimate on what the current fees are is extremely important, and this project sheds a new light on the mempool policy debate that occurred in the btc community a month or two ago
 - Python has a ton of useful libraries to help create a great and interactive CLI interface
 
-# Potential improvements
+# Potential Improvements
 This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved and we can do that by:
 - Finding more example PSBTs to test against (I had a ton of difficultly finding base64 encoded PSBTs that can be parsed correctly)
 - Automatically creating change output if only 1 output exists after an edit
