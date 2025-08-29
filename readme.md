@@ -57,7 +57,7 @@ Here's several things I learned:
 - The fiat system is so seamless with debit/credit card payment rails easily managing inputs and outputs with no change, but of course this comes at the cost of a third party being involved when money is meant for only two (trustless) parties
 - How fees are taken by miners based on the difference of inputs and outputs which explains why someone might overpay on fees. (I've heard this happen a couple times and always wondered how a mistake like that could happen)
 - Receiving an accurate estimate on what the current fees are is extremely important, and this project sheds a new light on the mempool policy debate that occurred in the btc community a month or two ago
-- Python has a ton of useful libraries to make it to create a great and interactive CLI interface
+- Python has a ton of useful libraries to help create a great and interactive CLI interface
 
 # Potential improvements
 This project does a great deal of PSBT analysis (especially when editing) but like most projects it can be improved and we can do that by:
